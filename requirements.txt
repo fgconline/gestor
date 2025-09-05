@@ -1,0 +1,9 @@
+streamlit>=1.38
+pandas
+numpy
+plotly
+openpyxl
+xlsxwriter
+bcrypt
+python-dotenv
+Pillow
