@@ -5,3 +5,10 @@ port = 8501
 [theme]
 base = "light"
 primaryColor = "#EF4444"
+
+[ui]
+hideTopBar = true
+
+[client]
+toolbarMode = "minimal"
+
