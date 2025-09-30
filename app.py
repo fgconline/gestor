@@ -42,13 +42,52 @@ def initialize_database():
             M2 REAL, Status_fabrica TEXT, Recebido TEXT, reservado TEXT
         )
     """)
-    # --- ADICIONADO: DEMAIS TABELAS ---
-    cursor.execute("CREATE TABLE IF NOT EXISTS clientes (Codigo TEXT, Nome TEXT, Fone TEXT, Tags TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS produtos (codpro TEXT, descricao TEXT, m2 REAL)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS vendas (Data_NF TEXT, Codcli TEXT, Codpro TEXT, Valor_Total REAL, Empresa TEXT, Vend TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS pedidos (Dt_Entrega TEXT, Codcli TEXT, Codpro TEXT, Vlr_Liquido REAL, Empresa TEXT, Cod_Vend TEXT, Tipo TEXT, Num_Ped TEXT, Nome_Vend TEXT, Nome_Cli TEXT, Qt_Vend REAL)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS suri (telefone_suri TEXT, Numero TEXT, codcli TEXT, Nome TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS rd (Celular TEXT, CodigoCliente TEXT, Data_ultima_conversao TEXT)")
+    
+    # --- DEFINIÇÕES DE TABELAS COMPLETAS ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS clientes (
+            Codigo TEXT, Nome TEXT, Tipo_Pessoa TEXT, Email TEXT, Estado TEXT,
+            Cidade TEXT, Fone TEXT, Segmento TEXT, Vendedor TEXT, Representante TEXT,
+            Situacao TEXT, Tipo_Fiscal TEXT, Papeis TEXT, Tags TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS produtos (
+            codpro TEXT PRIMARY KEY, descricao TEXT, m2 REAL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS vendas (
+            Data_NF TEXT, Num_NF TEXT, Codcli TEXT, Nome_do_Cliente TEXT, UF TEXT,
+            Codpro TEXT, QtdeFaturada REAL, Vlr_Unitario REAL, Valor_Total REAL,
+            Vend TEXT, Empresa TEXT
+        )
+    """)
+    # --- CORREÇÃO AQUI: Tabela de pedidos completa ---
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pedidos (
+            Tipo TEXT, Num_Ped TEXT, Dt_Pedido TEXT, Dt_Entrega TEXT, Codcli TEXT, 
+            Nome_Cli TEXT, Codpro TEXT, Descricao_Produto TEXT, Qt_Vend REAL, 
+            Vlr_Unit REAL, Vlr_Liquido REAL, OC TEXT, Cod_Vend TEXT, Nome_Vend TEXT, 
+            Num_Ped_Web TEXT, Empresa TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS suri (
+            suri_id TEXT, telefone_suri TEXT, Numero TEXT, Documento_Identificacao TEXT,
+            Genero TEXT, Id_Canal TEXT, Tipo_Canal TEXT, Primeiro_Contato TEXT,
+            Hora_Primeiro_Contato TEXT, Ultima_Atividade TEXT, Observacao TEXT,
+            codcli TEXT, Nome TEXT, Email TEXT, Ultimo_Atendente TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rd (
+            Email TEXT, Nome TEXT, Telefone TEXT, Celular TEXT, Empresa TEXT, 
+            Estado TEXT, Total_conversoes INTEGER, Data_primeira_conversao TEXT,
+            Origem_primeira_conversao TEXT, Data_ultima_conversao TEXT,
+            Origem_ultima_conversao TEXT, CNPJ TEXT, CodigoCliente TEXT
+        )
+    """)
     cursor.execute("CREATE TABLE IF NOT EXISTS tag (tag_id TEXT, tag_nome TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS vendedores (codvend TEXT, vendedor_nome TEXT)")
 
@@ -70,13 +109,11 @@ def initialize_database():
 # --- CHAMA A FUNÇÃO DE INICIALIZAÇÃO NO INÍCIO DA EXECUÇÃO ---
 initialize_database()
 
-
-# --- FUNÇÃO PARA MOSTRAR O CONTEÚDO DA PÁGINA INICIAL ---
+# --- O RESTANTE DO ARQUIVO CONTINUA IGUAL ---
 def show_home_page():
     st.title(f'Bem-vindo ao Gestor, {st.session_state["name"]}!')
     st.write(f'Seu perfil de acesso é: **{st.session_state["role"]}**')
 
-# --- MAPEAMENTO DE TODAS AS PÁGINAS DO APLICATIVO ---
 ALL_PAGES = {
     "app": st.Page(show_home_page, title="Início", icon="🏠", default=True),
     "1_Vendas": st.Page("pages/1_Vendas.py", title="Vendas", icon="💰"),
@@ -92,8 +129,6 @@ ALL_PAGES = {
     "11_Gerenciamento": st.Page("pages/11_Gerenciamento.py", title="Gerenciamento", icon="🔐"),
 }
 
-
-# --- FUNÇÕES DE BANCO DE DADOS (sem alterações) ---
 @st.cache_resource(ttl=300)
 def fetch_users():
     try:
@@ -118,7 +153,6 @@ def get_user_permissions_from_db(_role):
         return df_perms['page_name'].tolist()
     except: return []
 
-# --- FUNÇÃO DE VERIFICAÇÃO (sem alterações) ---
 def ensure_permissions_loaded():
     if not st.session_state.get("authentication_status"):
         return
@@ -134,14 +168,12 @@ def ensure_permissions_loaded():
         st.session_state["permissions"] = permissions
         st.session_state["_user_for_permissions"] = username
 
-# --- LÓGICA DE LOGIN ---
 credentials, user_roles = fetch_users()
 if not credentials or not credentials.get("usernames"):
     st.error("ERRO CRÍTICO: Nenhum usuário encontrado no banco de dados. Tente recarregar a página.")
     st.stop()
 authenticator = stauth.Authenticate(credentials, "gestor_mkt_cookie", "abcdef", 0)
 
-# --- NAVEGAÇÃO DINÂMICA E LÓGICA DE PÁGINA ---
 if not st.session_state.get("authentication_status"):
     _, col2, _ = st.columns(3)
     with col2:
@@ -150,9 +182,7 @@ if not st.session_state.get("authentication_status"):
         st.error("Usuário ou senha incorretos.")
     st.stop()
 
-# --- SE O USUÁRIO ESTIVER LOGADO ---
 ensure_permissions_loaded()
-
 pages_to_show = []
 if st.session_state.get("role") == "Master":
     pages_to_show = list(ALL_PAGES.values())
