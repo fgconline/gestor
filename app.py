@@ -2,17 +2,71 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
 import pandas as pd
+import bcrypt # Importa a biblioteca para criptografia
 
 st.set_page_config(page_title="Gestor", page_icon="📊", layout="wide")
 
 DB_FILE = "gestor_mkt.db"
+
+# --- FUNÇÃO DE INICIALIZAÇÃO DO BANCO DE DADOS ---
+def initialize_database():
+    """
+    Cria as tabelas do banco de dados se não existirem
+    e adiciona um usuário 'master' padrão se a tabela de usuários estiver vazia.
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # Cria todas as tabelas necessárias com a cláusula "IF NOT EXISTS"
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            username TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS permissoes (
+            role TEXT NOT NULL, page_name TEXT NOT NULL, PRIMARY KEY (role, page_name)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS estoque (
+            codpro TEXT, produto TEXT, qtde REAL, deposito TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS imports (
+            nome TEXT, Data_prevista TEXT, CodPro TEXT, Descricao TEXT, Rolos REAL, 
+            M2 REAL, Status_fabrica TEXT, Recebido TEXT, reservado TEXT
+        )
+    """)
+    # (Adicione outros CREATE TABLE IF NOT EXISTS para as demais tabelas se necessário)
+
+    # Verifica se a tabela de usuários está vazia
+    cursor.execute("SELECT COUNT(*) FROM usuarios")
+    if cursor.fetchone()[0] == 0:
+        # Se estiver vazia, cria um usuário 'master' com senha '123'
+        st.warning("Nenhum usuário encontrado. Criando usuário 'master' com senha '123'. Altere esta senha no primeiro login.")
+        hashed_password = bcrypt.hashpw('123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cursor.execute(
+            "INSERT INTO usuarios (username, name, password, role) VALUES (?, ?, ?, ?)",
+            ('master', 'Usuário Master', hashed_password, 'Master')
+        )
+
+    conn.commit()
+    conn.close()
+# --- FIM DA FUNÇÃO DE INICIALIZAÇÃO ---
+
+
+# --- CHAMA A FUNÇÃO DE INICIALIZAÇÃO NO INÍCIO DA EXECUÇÃO ---
+initialize_database()
+
 
 # --- FUNÇÃO PARA MOSTRAR O CONTEÚDO DA PÁGINA INICIAL ---
 def show_home_page():
     st.title(f'Bem-vindo ao Gestor, {st.session_state["name"]}!')
     st.write(f'Seu perfil de acesso é: **{st.session_state["role"]}**')
 
-# --- MAPEAMENTO DE TODAS AS PÁGINAS DO APLICATIVO ---
+# --- MAPEAMENTO DE TODAS AS PÁGINAS DO APLICATIVO (ORDEM ATUALIZADA) ---
 ALL_PAGES = {
     "app": st.Page(show_home_page, title="Início", icon="🏠", default=True),
     "1_Vendas": st.Page("pages/1_Vendas.py", title="Vendas", icon="💰"),
@@ -28,7 +82,8 @@ ALL_PAGES = {
     "11_Gerenciamento": st.Page("pages/11_Gerenciamento.py", title="Gerenciamento", icon="🔐"),
 }
 
-# --- FUNÇÕES DE BANCO DE DADOS ---
+
+# --- FUNÇÕES DE BANCO DE DADOS (sem alterações) ---
 @st.cache_resource(ttl=300)
 def fetch_users():
     try:
@@ -53,30 +108,27 @@ def get_user_permissions_from_db(_role):
         return df_perms['page_name'].tolist()
     except: return []
 
-# --- FUNÇÃO DE VERIFICAÇÃO COM LÓGICA APERFEIÇOADA ---
+# --- FUNÇÃO DE VERIFICAÇÃO (sem alterações) ---
 def ensure_permissions_loaded():
     if not st.session_state.get("authentication_status"):
         return
-
-    # A verificação agora garante que as permissões carregadas pertencem ao usuário atual
     is_loaded_for_correct_user = (
         "permissions" in st.session_state and
         st.session_state.get("_user_for_permissions") == st.session_state.get("username")
     )
-
     if not is_loaded_for_correct_user:
         username = st.session_state.get("username")
         role = user_roles.get(username)
         permissions = get_user_permissions_from_db(role)
-
         st.session_state["role"] = role
         st.session_state["permissions"] = permissions
-        st.session_state["_user_for_permissions"] = username # Vincula as permissões ao usuário
+        st.session_state["_user_for_permissions"] = username
 
 # --- LÓGICA DE LOGIN ---
 credentials, user_roles = fetch_users()
+# A verificação de erro crítico agora acontece após a inicialização, então é mais segura
 if not credentials or not credentials.get("usernames"):
-    st.error("ERRO CRÍTICO: Nenhum usuário encontrado no banco de dados.")
+    st.error("ERRO CRÍTICO: Nenhum usuário encontrado no banco de dados. Tente recarregar a página.")
     st.stop()
 authenticator = stauth.Authenticate(credentials, "gestor_mkt_cookie", "abcdef", 0)
 
@@ -90,7 +142,7 @@ if not st.session_state.get("authentication_status"):
     st.stop()
 
 # --- SE O USUÁRIO ESTIVER LOGADO ---
-ensure_permissions_loaded() # A nova lógica é chamada aqui
+ensure_permissions_loaded()
 
 pages_to_show = []
 if st.session_state.get("role") == "Master":
@@ -108,7 +160,6 @@ with st.sidebar:
     st.divider()
     st.subheader(f'Bem-vindo, {st.session_state["name"]}!')
     
-    # --- LOGOUT HARD (CORRETO E SEGURO) ---
     if authenticator.logout("Logout", "main"):
         st.cache_data.clear()
         st.cache_resource.clear()
