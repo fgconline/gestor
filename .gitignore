@@ -1,0 +1,11 @@
+# Banco de dados e arquivos de configuração
+*.db
+*.json
+
+# Arquivos de ambiente virtual
+venv/
+.venv/
+
+# Arquivos do Python
+__pycache__/
+*.pyc

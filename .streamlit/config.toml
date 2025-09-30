@@ -1,0 +1,11 @@
+[theme]
+# Define o tema base como "light" (claro) ou "dark" (escuro).
+# Usar "light" vai resolver o problema da sidebar preta.
+base="light"
+
+# Abaixo estão cores opcionais que você pode usar para personalizar
+primaryColor="#673AB7"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F0F2F6"
+textColor="#262730"
+font="sans serif"

@@ -1,0 +1,10 @@
+streamlit
+pandas
+streamlit-authenticator
+bcrypt
+numpy
+openpyxl
+xlrd
+requests
+phonenumbers
+xlsxwriter
