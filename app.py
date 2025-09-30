@@ -2,49 +2,59 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
 import pandas as pd
-import bcrypt # Importa a biblioteca para criptografia
+import bcrypt
 
 st.set_page_config(page_title="Gestor", page_icon="📊", layout="wide")
 
 DB_FILE = "gestor_mkt.db"
 
-# --- FUNÇÃO DE INICIALIZAÇÃO DO BANCO DE DADOS ---
+# --- FUNÇÃO DE INICIALIZAÇÃO DO BANCO DE DADOS (EXPANDIDA) ---
 def initialize_database():
     """
-    Cria as tabelas do banco de dados se não existirem
+    Cria TODAS as tabelas do banco de dados se não existirem
     e adiciona um usuário 'master' padrão se a tabela de usuários estiver vazia.
     """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # Cria todas as tabelas necessárias com a cláusula "IF NOT EXISTS"
+    # Tabela de usuários
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL
         )
     """)
+    # Tabela de permissões
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS permissoes (
             role TEXT NOT NULL, page_name TEXT NOT NULL, PRIMARY KEY (role, page_name)
         )
     """)
+    # Tabela de estoque
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS estoque (
             codpro TEXT, produto TEXT, qtde REAL, deposito TEXT
         )
     """)
+    # Tabela de importações
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS imports (
             nome TEXT, Data_prevista TEXT, CodPro TEXT, Descricao TEXT, Rolos REAL, 
             M2 REAL, Status_fabrica TEXT, Recebido TEXT, reservado TEXT
         )
     """)
-    # (Adicione outros CREATE TABLE IF NOT EXISTS para as demais tabelas se necessário)
+    # --- ADICIONADO: DEMAIS TABELAS ---
+    cursor.execute("CREATE TABLE IF NOT EXISTS clientes (Codigo TEXT, Nome TEXT, Fone TEXT, Tags TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS produtos (codpro TEXT, descricao TEXT, m2 REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS vendas (Data_NF TEXT, Codcli TEXT, Codpro TEXT, Valor_Total REAL, Empresa TEXT, Vend TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pedidos (Dt_Entrega TEXT, Codcli TEXT, Codpro TEXT, Vlr_Liquido REAL, Empresa TEXT, Cod_Vend TEXT, Tipo TEXT, Num_Ped TEXT, Nome_Vend TEXT, Nome_Cli TEXT, Qt_Vend REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS suri (telefone_suri TEXT, Numero TEXT, codcli TEXT, Nome TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS rd (Celular TEXT, CodigoCliente TEXT, Data_ultima_conversao TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS tag (tag_id TEXT, tag_nome TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS vendedores (codvend TEXT, vendedor_nome TEXT)")
 
     # Verifica se a tabela de usuários está vazia
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
-        # Se estiver vazia, cria um usuário 'master' com senha '123'
         st.warning("Nenhum usuário encontrado. Criando usuário 'master' com senha '123'. Altere esta senha no primeiro login.")
         hashed_password = bcrypt.hashpw('123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         cursor.execute(
@@ -66,7 +76,7 @@ def show_home_page():
     st.title(f'Bem-vindo ao Gestor, {st.session_state["name"]}!')
     st.write(f'Seu perfil de acesso é: **{st.session_state["role"]}**')
 
-# --- MAPEAMENTO DE TODAS AS PÁGINAS DO APLICATIVO (ORDEM ATUALIZADA) ---
+# --- MAPEAMENTO DE TODAS AS PÁGINAS DO APLICATIVO ---
 ALL_PAGES = {
     "app": st.Page(show_home_page, title="Início", icon="🏠", default=True),
     "1_Vendas": st.Page("pages/1_Vendas.py", title="Vendas", icon="💰"),
@@ -126,7 +136,6 @@ def ensure_permissions_loaded():
 
 # --- LÓGICA DE LOGIN ---
 credentials, user_roles = fetch_users()
-# A verificação de erro crítico agora acontece após a inicialização, então é mais segura
 if not credentials or not credentials.get("usernames"):
     st.error("ERRO CRÍTICO: Nenhum usuário encontrado no banco de dados. Tente recarregar a página.")
     st.stop()
